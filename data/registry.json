@@ -1,0 +1,11 @@
+{
+  "persons": [
+    {
+      "id": "lxy-e4a1",
+      "name": "李星言",
+      "relationship": "儿子",
+      "created_date": "2026-04-15",
+      "tracking_mode": "deep"
+    }
+  ]
+}

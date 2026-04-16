@@ -1,0 +1,15 @@
+{
+  "id": "lxy-e4a1",
+  "name": "李星言",
+  "nickname": "乐一",
+  "gender": "男",
+  "birth_date": "2025-05-21",
+  "relationship": "儿子",
+  "created_date": "2026-04-15",
+  "tracking_mode": "deep",
+  "observation_count": 1,
+  "last_observation": "2026-04-15",
+  "last_synthesis": null,
+  "maturity_level": "early",
+  "cron_job_id": "98bb2f5b0775"
+}
