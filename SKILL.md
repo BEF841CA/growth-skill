@@ -4,7 +4,8 @@ description: |
   成长记录：通过日常观察追踪任何人的认知成长轨迹。
   输入日记→提取认知信号→周期演化为认知画像→复盘成长轨迹。
   触发词：「记录」「今天」「观察」「成长报告」「复盘」「成长轨迹」
-  「演化」「更新画像」「追踪」「新的人」「看看状态」「删除记录」「修正」。
+  「演化」「更新画像」「追踪」「新的人」「看看状态」「删除记录」「修正」
+  「回滚」「恢复画像」。
   模糊触发：直接粘贴描述性文字，系统自动判断是否为观察记录（采用确认机制，避免误判）。
 ---
 
@@ -39,14 +40,16 @@ growth-skill 不是角色扮演，是**认知成长追踪**。
 | 手动演化 | **Phase 3** 画像合成 | 「演化」「更新画像」「合成」 |
 | 新增追踪 | **Phase 0A** 新增对象 | 「追踪」「新的人」「开始追踪」 |
 | 管理记录 | **Phase 0B** 记录管理 | 「删除记录」「修正」 |
+| 回滚画像 | **Phase 0D** 版本回滚 | 「回滚」「恢复画像」「回退到」 |
 | 总览状态 | **Phase 5** 追踪总览 | 「看看状态」「所有人」「追踪列表」 |
 | 不含触发词的描述性文字 | **模糊触发** → 确认后 Phase 1 | 直接粘贴一段关于某人的描述 |
+| Phase 1 回应后的纠偏 | **Phase 0C** 对话纠偏 | 仅在 Phase 1 信号提取回应后触发，见 Phase 0C |
 
 **模糊触发规则**：当用户输入不含明确触发词，但内容看起来像在描述某个被追踪对象的行为/状态/变化时，采用确认机制：
 - 单人追踪且内容明显相关 → 直接确认："这看起来像是一条关于 [名字] 的观察，记下来了吗？"
 - 多人追踪或不确定 → 简短确认："这是关于谁的观察记录？"
 
-**路径定位**：执行任何 Phase 前，先查找项目根目录——从当前工作目录开始，逐级向上查找 `data/registry.json`。找到后以此为基准路径。若找不到，提示用户确认项目路径。
+**路径定位**：执行任何 Phase 前，先确定 skill 项目的根目录——从 SKILL.md 自身所在目录向上查找（SKILL.md 必定在项目根目录），以该目录下的 `data/` 作为所有数据的基准路径。若 `data/` 不存在则自动创建。
 
 ---
 
@@ -59,14 +62,14 @@ growth-skill 不是角色扮演，是**认知成长追踪**。
 通过1-2轮追问确认（不要变成问卷，自然对话）：
 
 必填：
-1. **名字**：用于创建目录和显示
-2. **性别**：男/女/其他。性别影响社会期望、行为模式解读和表达方式分析
-3. **出生日期**：用于推算年龄。年龄是认知发展的关键变量——同一条行为，3岁宝宝和30岁成人的认知意义完全不同
+- **名字**：用于创建目录和显示
+- **性别**：男/女/其他。性别影响社会期望、行为模式解读和表达方式分析
+- **出生日期**：用于推算年龄。年龄是认知发展的关键变量——同一条行为，3岁宝宝和30岁成人的认知意义完全不同
 
 可选：
-4. **昵称**：日常称呼，记录观察时可替代名字
-5. **关系**（默认"未知"）：如"儿子""朋友""自己"，辅助理解观察语境
-6. **追踪模式**（默认"轻度"）：
+- **昵称**：日常称呼，记录观察时可替代名字
+- **关系**（默认"未知"）：如"儿子""朋友""自己"，辅助理解观察语境
+- **追踪模式**（默认"轻度"）：
    - **深度**：建议每周合成一次，设置 cron 提醒
    - **轻度**：建议每月合成一次，不设 cron
 
@@ -93,11 +96,15 @@ growth-skill 不是角色扮演，是**认知成长追踪**。
 data/[person-id]/
   person.json
   observations/
-  signals.jsonl              # 初始化为空
+  signals.jsonl              # 初始化为空（工作记忆，append-only）
   signals-archive/
-    consolidating/
-    long-term/
-    schemas/
+    consolidating/           # 月度归档
+      YYYY-MM-raw.json       # 月度原始信号（完整保留）
+      YYYY-MM-summary.md     # 月度归档摘要（聚类合并后的增强版）
+    long-term/               # 年度归档
+      YYYY-raw/              # 原始信号按月保留
+      YYYY-summary.md        # 年度信号摘要（跨月合并，原文摘录全部保留）
+    schemas/                 # 图式记忆（永久沉淀）
   profile-history/
 ```
 
@@ -120,7 +127,20 @@ data/[person-id]/
     "cron_job_id": null
   }
   ```
-- 更新 `data/registry.json`，追加新条目
+- 更新 `data/registry.json`，追加新条目。registry.json 格式：
+  ```json
+  {
+    "persons": [
+      {
+        "id": "[person-id]",
+        "name": "[名字]",
+        "relationship": "[关系]",
+        "created_date": "YYYY-MM-DD",
+        "tracking_mode": "deep/casual"
+      }
+    ]
+  }
+  ```
 
 **Step 3: 设置 cron（仅深度模式）**
 
@@ -128,7 +148,10 @@ data/[person-id]/
 - 深度模式：每周一 9:17（`cron: "17 9 * * 1"`）
 - 轻度模式：不设 cron
 - `recurring: true`，`durable: true`
+- prompt 内容：`"执行 growth-skill Phase 2 信号检查。读取 data/registry.json，对 tracking_mode 为 deep 的追踪对象执行周期性信号检查。如果有显著变化，提醒用户做成长合成。"`
 - 将 cron job ID 写入 person.json
+
+**注意**：durable cron 任务有 7 天自动过期机制。如果用户超过 7 天未使用 Claude Code，cron 会消失。Phase 5 追踪总览中会检查 cron 是否过期并提示重新设置。
 
 **完成确认**：
 ```
@@ -146,7 +169,7 @@ data/[person-id]/
 
 1. 确认要删除的记录（显示日期和内容摘要）
 2. 删除 `observations/YYYY-MM-DD.md`
-3. 从 `signals.jsonl` 中移除 `observation_file` 匹配该日期的所有信号
+3. 从 `signals.jsonl` 中移除 `observation_dates` 包含该日期的所有信号
 4. 如果某信号因删除而 occurrence_count 降为 0，则移除该信号
 5. 确认完成：「已删除 [日期] 的记录和相关信号」
 
@@ -165,6 +188,74 @@ data/[person-id]/
 
 ---
 
+### Phase 0C: 对话纠偏（Phase 1 后置钩子）
+
+**触发条件**（必须同时满足）：
+1. 前一轮对话是 Phase 1 的信号提取回应
+2. 用户当前输入表达对信号提取的异议：「不对」「撤回信号」「信号有误」「不是这样」「这个判断不对」等
+
+**为什么不是入口分流的独立路径**：「不对」「修正」等是日常高频词，如果作为独立触发词会在无关场景中误判。作为 Phase 1 的后置钩子，只有在信号提取回应之后才激活，彻底消除误触发。
+
+**与 Phase 0B 的区别**：Phase 0B 修正的是原始观察记录（日记原文），Phase 0C 修正的是系统从观察中提取的信号（认知判断）。两者独立运作——原始记录可以是准确的，但系统提取的信号可能偏离观察者的本意。
+
+**执行流程**：
+
+1. **定位信号**：根据上一轮 Phase 1 回应中提到的信号，找到对应的信号
+2. **展示确认**：列出涉及到的信号，让用户指出哪条有误
+   ```
+   最近的信号提取中，以下几条可能需要调整：
+   1. [信号类型] "[信号内容]" — 来自 [日期] 的观察
+   哪条需要修正？
+   ```
+3. **用户选择修正方式**：
+   - **撤回信号**：追加一行 `status: "removed"` 的标记行到 signals.jsonl（append-only，不删除旧行），同时恢复关联信号的 occurrence_count（如果关联其他观察则保留但减 1）
+   - **修正描述**：追加更新后的信号行，标记 `corrected: true`
+   - **降级状态**：追加更新后的信号行，如 established → emerging
+4. **确认完成**：
+   ```
+   已修正：[原信号描述] → [新信号描述]
+   后续观察会基于修正后的信号继续追踪。
+   ```
+
+**设计原则**：
+- 纠偏是轻量操作，不需要重新处理整条观察记录
+- 纠偏后不自动触发画像合成，避免连锁反应
+- 如果同一 `type` 的信号在过去 10 次 Phase 1 中被纠偏 ≥ 3 次，在下次合成时提示：「之前多次修正了 [类型] 类信号，可能需要调整提取策略」
+
+---
+
+### Phase 0D: 版本回滚
+
+**触发**：用户说「回滚 [名字]」「恢复画像到 [日期]」「回退到 [日期] 的画像」。
+
+**执行流程**：
+
+1. **展示历史版本**：读取 `profile-history/` 目录，列出所有可用的历史画像
+   ```
+   [名字] 的画像历史：
+   1. profile-2026-03-01.md（基于 38 条观察）
+   2. profile-2026-02-01.md（基于 25 条观察）
+   3. profile-2026-01-01.md（基于 12 条观察）
+   要恢复到哪个版本？
+   ```
+2. **用户确认后执行**：
+   - 将当前 `profile.md` 备份为 `profile-[当前日期].md.pre-rollback`（保留在 profile-history/ 中）
+   - 将选定的历史版本复制为新的 `profile.md`
+   - **信号不回滚**：信号层（signals.jsonl + 归档）保持不变，回滚只影响画像输出。理由是信号是客观的观察记录，不应因画像偏好而改变
+3. **确认完成**：
+   ```
+   已将 [名字] 的画像恢复到 [日期] 版本。
+   注意：信号数据未回滚，下次合成时会基于当前全部信号重新生成。
+   如果需要彻底回到那个时间点的状态，请告诉我。
+   ```
+
+**设计原则**：
+- 画像回滚是"软回滚"——只恢复画像文件，不动信号数据
+- 如果用户需要"硬回滚"（信号也要回滚），需要额外确认并明确告知风险（会丢失回滚点之后的观察数据）
+- 回滚后的画像在下次合成时会被覆盖，回滚本质上是一次性的快照查看
+
+---
+
 ### Phase 1: 记录观察
 
 **触发**：Phase 0 分流到此，或模糊触发确认后。
@@ -178,7 +269,7 @@ data/[person-id]/
 
 **Step 2: 写入观察文件**
 
-- 文件名：`observations/YYYY-MM-DD.md`（同一天多条记录追加到同一文件，用 `---` 分隔）
+- 文件名：`observations/YYYY-MM-DD.md`（同一天多条记录追加到同一文件，用 `<!-- record-separator -->` 分隔，避免与 YAML frontmatter 的 `---` 冲突）
 - Frontmatter：
   ```yaml
   ---
@@ -191,7 +282,7 @@ data/[person-id]/
 
 **Step 3: 轻量信号提取**
 
-读取当前 `signals.jsonl`（工作记忆）+ 最近1个月的 `signals-archive/consolidating/` 归档。
+读取当前 `signals.jsonl`（工作记忆）+ 所有 `signals-archive/consolidating/*-summary.md` 和 `signals-archive/long-term/*-summary.md` 归档摘要（扫描信号 content 列表做匹配判断，匹配到后再读取完整信号详情）。
 
 对新观察执行轻量提取：
 1. **匹配已有信号**：新观察的内容是否与已有信号的描述相关？
@@ -204,7 +295,7 @@ data/[person-id]/
 4. **检测里程碑**：新观察是否包含重要人生事件？
    - 是 → 创建 milestone 类型信号
 
-将新/更新的信号追加到 `signals.jsonl`。
+将新/更新的信号追加到 `signals.jsonl`（append-only：更新时追加新行，不修改旧行；读取时按 `id` 去重取最新行）。
 
 **Step 4: 简短回应**
 
@@ -212,6 +303,7 @@ data/[person-id]/
 - 提取 1-2 个最值得关注的发现
 - 用自然语言，不要用技术术语（不说"信号置信度0.7"）
 - 如果是新追踪对象的早期记录，强调"这只是初步印象"
+- 回应末尾自然暗示纠偏入口：「如果上面的判断不太对，直接告诉我就好」
 
 示例回应：
 ```
@@ -232,7 +324,7 @@ data/[person-id]/
 **触发**：cron 任务（深度模式每周一次，轻度模式每月一次）。
 
 **执行逻辑**：
-1. 扫描该对象的所有信号（工作记忆 + 巩固区）
+1. 扫描该对象的所有信号（工作记忆 `signals.jsonl` + 巩固区 `*-summary.md`）
 2. 检查是否有信号状态需要更新（如 emerging 信号已满足 established 条件）
 3. 检查是否有遗忘曲线 retention < 0.15 的信号需要标记 forgotten
 4. 检查是否有新矛盾或里程碑
@@ -249,24 +341,29 @@ data/[person-id]/
 
 **Step 1: 记忆检索**
 
-从四层记忆中检索该对象的所有认知信号：
+从四层记忆中检索该对象的所有认知信号（只读取摘要文件，原始文件仅作保留，不参与合成读取）：
 
 | 记忆层 | 读取路径 | 作用 |
 |--------|---------|------|
 | 工作记忆 | `signals.jsonl` | 主要数据源 |
-| 巩固区 | `signals-archive/consolidating/*.jsonl` | 补充近期模式 |
-| 长期记忆 | `signals-archive/long-term/*.jsonl` | 验证持久性 |
+| 巩固区 | `signals-archive/consolidating/*-summary.md` | 补充近期模式 |
+| 长期记忆 | `signals-archive/long-term/*-summary.md` | 验证持久性 |
 | 图式记忆 | `signals-archive/schemas/*.md` | 已确立模型的历史深度 |
 
 **Step 2: 信号归档（"巩固"）**
 
-执行类似人脑睡眠中的记忆整合：
+执行类似人脑睡眠中的记忆整合。归档时**保留原始信号文件不变**，另生成归档摘要文件：
 
 1. **工作记忆容量检查**：如果 signals.jsonl 超过 200 条信号，将 retention 最低的信号移入巩固区
-2. **月度归档**：将上月及更早的信号移入 `signals-archive/consolidating/YYYY-MM.jsonl`
-3. **聚类合并**：在归档过程中，将内容高度相似的信号合并为一条增强版（保留所有 occurrence_count 和跨域计数，原文摘录只保留最具代表性的1-2条）
-4. **显著性标记**：milestone 和 contradiction 信号标记为高显著性，在归档中优先保留
-5. **年度转换**：如果当前是1月，将上一年度的 consolidating 归档合并转入 `long-term/YYYY-signals.jsonl`，只保留信号骨架（类型、内容摘要、最终状态、跨域计数），剥离原文摘录
+2. **月度归档**：
+   - 将上月及更早的信号原始文件**原样复制**到 `signals-archive/consolidating/YYYY-MM-raw.json`（保留全部细节：原文摘录、完整上下文、所有字段）
+   - 同时生成归档摘要 `signals-archive/consolidating/YYYY-MM-summary.md`：聚类合并高度相似的信号为增强版（保留所有 occurrence_count 和跨域计数，原文摘录全部保留）
+   - 从 signals.jsonl 中移除已归档的信号
+3. **显著性标记**：milestone 和 contradiction 信号标记为高显著性，在归档中优先保留
+4. **年度转换**：如果当前是1月，将上一年度的 consolidating 归档合并转入长期记忆：
+   - 原始文件 `consolidating/YYYY-MM-raw.json` → `long-term/YYYY-raw/` 目录下保留（不压缩）
+   - 摘要文件 `consolidating/YYYY-MM-summary.md` → 合并为 `long-term/YYYY-summary.md`，跨月聚类合并，保留信号骨架和全部原文摘录
+   - consolidating/ 中已转入 long-term/ 的文件保留不删除
 
 **Step 3: 遗忘计算与再巩固**
 
@@ -292,6 +389,7 @@ effective_weight = significance × retention × recency_boost
 根据当前观察总量确定成熟度（early/developing/mature），应用对应的验证阈值。
 
 从通过验证的信号中构建画像：
+0. **身份**：综合所有信号和观察记录，用一段话描述这个人在观察者眼中的定位（不是简历，是感受）
 1. **心智模型**：从 established 信号中筛选，按 effective_weight 排序，取 top N（N ≤ 对应成熟度的最大模型数）
 2. **决策启发式**：从 emerging/established 的 decision_heuristic_seed 中提取
 3. **表达模式**：从 expression_fingerprint 信号中归纳
@@ -305,9 +403,10 @@ effective_weight = significance × retention × recency_boost
 **Step 6: 生成画像**
 
 1. 读取 `references/profile-template.md` 获取标准结构
-2. 将 Step 5 的结果按模板填入
+2. 将 Step 5 的结果按模板填入，每个心智模型的「记忆强度」填入其 effective_weight 值
 3. 如果已有 profile.md → 先归档到 `profile-history/profile-YYYY-MM-DD.md`
 4. 写入新的 `profile.md`
+5. 更新 `person.json`：回写 `maturity_level`、`observation_count`、`last_synthesis` 为当前值
 
 **Step 7: 质量自检**
 
@@ -347,6 +446,7 @@ effective_weight = significance × retention × recency_boost
 **Step 1: 读取历史**
 
 读取 `profile-history/` 目录下的所有历史画像，按时间排序。
+同时读取工作记忆和归档摘要中的信号变化（信号升级/降级、新矛盾、新里程碑），补充画像快照之间未反映的细节。
 
 **Step 2: 生成成长叙事**
 
@@ -416,6 +516,7 @@ effective_weight = significance × retention × recency_boost
 - 超过14天没有新记录 → 标注"需要关注"
 - 超过30天没有新记录 → 标注"可能已停止追踪"，建议确认是否继续
 - 上次合成距今超过对应模式的周期（深度>7天，轻度>30天）→ 建议做一次合成
+- 深度模式且 cron_job_id 对应的 cron 已过期（>7天）→ 标注"定时提醒已过期"，建议重新设置 cron
 
 ---
 

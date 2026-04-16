@@ -17,6 +17,57 @@
 | `milestone` | 重要人生事件 | "开始上幼儿园了" |
 | `emotional_pattern` | 情绪反应模式 | "受挫时会先沉默再爆发" |
 
+### 信号数据结构
+
+每条信号在 `signals.jsonl` 中为一行 JSON。**更新策略为 append-only**：信号被匹配更新时，不修改旧行，而是追加一行新的完整 JSON（包含更新后的所有字段）。读取时按 `id` 去重，取最新出现的行作为当前状态。月度归档时会压缩为每个信号只保留最新版本。
+
+结构如下：
+
+```json
+{
+  "id": "sig-[uuid短码]",
+  "type": "mental_model_seed",
+  "status": "seed",
+  "content": "遇到问题先自己试",
+  "original_excerpts": [
+    {"date": "2026-03-15", "text": "今天碰到不会的拼图，先自己试了5分钟才来找我"},
+    {"date": "2026-04-02", "text": "杯子倒了没叫我，自己拿抹布擦"}
+  ],
+  "occurrence_count": 2,
+  "domains": ["学习探索", "行为习惯"],
+  "cross_domain_count": 2,
+  "first_seen": "2026-03-15",
+  "last_seen": "2026-04-02",
+  "stability": 60,
+  "significance": 1.0,
+  "observation_dates": ["2026-03-15", "2026-04-02"],
+  "related_signal_id": null,
+  "corrected": false,
+  "reconsolidated_from": null
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 信号唯一标识，`sig-` + 短随机码 |
+| `type` | string | 信号类型，见上方类型定义表 |
+| `status` | string | 信号状态：seed / emerging / established / evolving / dormant / forgotten |
+| `content` | string | 信号内容描述（自然语言） |
+| `original_excerpts` | array | 原文摘录列表，每条包含日期和原文。全部保留，不裁剪 |
+| `occurrence_count` | int | 被观察匹配到的次数 |
+| `domains` | array | 出现过的领域列表 |
+| `cross_domain_count` | int | 跨域计数（不同域的出现次数） |
+| `first_seen` | date | 首次出现日期 |
+| `last_seen` | date | 最后一次被匹配的日期 |
+| `stability` | float | 遗忘曲线稳定性参数（天），初始值取决于信号类型 |
+| `significance` | float | 信号固有权重：milestone=1.5, contradiction=1.3, 其他=1.0 |
+| `observation_dates` | array | 关联的观察日期列表，用于删除记录时定位信号 |
+| `related_signal_id` | string/null | 关联信号 ID（contradiction 类型指向原信号，其他为 null） |
+| `corrected` | bool | 是否被用户纠偏修正过 |
+| `reconsolidated_from` | string/null | 再巩固来源路径（如 "consolidating/2026-01-summary.md"），null 表示非再巩固信号 |
+
 ## 二、信号状态流转
 
 ```
@@ -109,8 +160,8 @@ effective_weight = significance × retention × recency_boost
 | 层 | 存储 | 行为 |
 |---|---|---|
 | 工作记忆 | `signals.jsonl` | 容量~200条，保留全部细节 |
-| 巩固区 | `signals-archive/consolidating/` | 按月存储，聚类合并，提取摘要 |
-| 长期记忆 | `signals-archive/long-term/` | 按年存储，只保留骨架 |
+| 巩固区 | `signals-archive/consolidating/` | 按月双文件：`YYYY-MM-raw.json`（原始完整保留，仅供人工查阅）+ `YYYY-MM-summary.md`（聚类合并摘要，合成时只读此文件） |
+| 长期记忆 | `signals-archive/long-term/` | 按年双文件：`YYYY-raw/`（原始按月保留，仅供人工查阅）+ `YYYY-summary.md`（跨月合并摘要，合成时只读此文件） |
 | 图式记忆 | `signals-archive/schemas/` | established 超6个月的模型沉淀，不遗忘 |
 
 ## 六、矛盾处理三类型

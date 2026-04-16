@@ -67,6 +67,14 @@ npx skills add .
 > 修正 2026-03-10
 ```
 
+### 纠偏和回滚
+
+```
+> 不对，这个信号不准确
+> 撤回信号
+> 回滚 Leo 的画像到 3月份的版本
+```
+
 ### 追踪总览
 
 ```
@@ -86,7 +94,11 @@ data/
     signals.jsonl               # 工作记忆（活跃信号）
     signals-archive/            # 归档信号（模拟人脑记忆层级）
       consolidating/            # 巩固区（按月）
+        YYYY-MM-raw.json       # 月度原始信号（完整保留）
+        YYYY-MM-summary.md     # 月度归档摘要（聚类合并，原文摘录全部保留）
       long-term/                # 长期记忆（按年）
+        YYYY-raw/               # 原始信号按月保留
+        YYYY-summary.md        # 年度信号摘要（跨月合并，原文摘录全部保留）
       schemas/                  # 图式记忆（永久沉淀）
     profile.md                  # 当前认知画像
     profile-history/            # 画像历史快照
@@ -99,8 +111,8 @@ data/
 信号归档模拟人脑记忆的四个阶段：
 
 1. **工作记忆**（signals.jsonl）— 容量有限，保留全部细节
-2. **巩固区**（consolidating/）— 按月归档，聚类合并，提取模式摘要
-3. **长期记忆**（long-term/）— 按年归档，只保留信号骨架
+2. **巩固区**（consolidating/）— 按月归档，原始文件完整保留 + 聚类合并摘要
+3. **长期记忆**（long-term/）— 按年归档，原始文件完整保留 + 跨月合并摘要
 4. **图式记忆**（schemas/）— 已确立模式的永久沉淀，不遗忘
 
 遗忘遵循 Ebbinghaus 曲线：`retention = e^(-t / stability)`，不同信号类型遗忘速度不同。重复引用会增强 stability（间隔重复效应）。被遗忘的信号被新观察匹配时会再巩固。
