@@ -1,3 +1,5 @@
+<div align="center">
+
 > _「你不记录，成长就只是感觉。你记录了，成长就有迹可循。」_
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -11,10 +13,12 @@ __通过日常观察，追踪任何人的认知成长轨迹。__
 一个帮父亲追踪宝宝认知发育的工具，一个帮子女记录老人认知状态的档案，一个帮写作者追踪自身思维模式变化的方法。growth-skill 给所有想记录「一个人如何成长」的人准备的。
 
 [colleague-skill](https://github.com/titanwings/colleague-skill) 把离职同事蒸馏成 AI Skill。  \
-[nuwa-skill](https://github.com/alchaincyf/nuwa-skill) 把名人的认知框架蒸馏成可调用的视角。  \
+[nuwa-skill](https://github.com/alchaincyf/nuwa-skill) 把名人认知框架蒸馏为可调用视角。  \
 growth-skill 把日常观察变成持续演化的认知画像。
 
 [效果示例](#效果示例) · [快速开始](#快速开始) · [核心特性](#核心特性) · [工作原理](#工作原理) · [仓库结构](#仓库结构)
+
+</div>
 
 ---
 
