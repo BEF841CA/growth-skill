@@ -7,8 +7,8 @@
   "relationship": "儿子",
   "created_date": "2026-04-15",
   "tracking_mode": "deep",
-  "observation_count": 3,
-  "last_observation": "2026-04-19",
+  "observation_count": 4,
+  "last_observation": "2026-04-20",
   "last_synthesis": null,
   "maturity_level": "early",
   "cron_job_id": "98bb2f5b0775"
